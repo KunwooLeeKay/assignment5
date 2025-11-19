@@ -16,14 +16,15 @@ def create_parser():
     parser.add_argument('--num_points', type=int, default=1000, help='The number of points per object to be included in the input data')
 
     # Directories and checkpoint/sample iterations
-    parser.add_argument('--load_checkpoint', type=str, default='model_epoch_240')
+    parser.add_argument('--load_checkpoint', type=str, default='best_model')
     parser.add_argument('--i', type=int, default=0, help="index of the object to visualize")
 
     parser.add_argument('--test_data', type=str, default='./data/cls/data_test.npy')
     parser.add_argument('--test_label', type=str, default='./data/cls/label_test.npy')
     parser.add_argument('--output_dir', type=str, default='./output')
 
-    parser.add_argument('--exp_name', type=str, default="exp", help='The name of the experiment')
+    parser.add_argument('--exp_name', type=str, default="exp2", help='The name of the experiment')
+    parser.add_argument('--rotation_angle', type=float, default=np.pi/4, help='Maximum rotation angle for exp1')
 
     return parser
 
@@ -53,7 +54,6 @@ if __name__ == '__main__':
     test_label = torch.from_numpy(np.load(args.test_label))
 
 
-
     # ------ TO DO: Make Prediction ------
     pred_label = model(test_data)
     pred_label = torch.argmax(pred_label, dim = 1)
@@ -62,3 +62,29 @@ if __name__ == '__main__':
     test_accuracy = pred_label.eq(test_label.data).cpu().sum().item() / (test_label.size()[0])
     print ("test accuracy: {}".format(test_accuracy))
 
+    if args.exp_name in ["exp1", "both"]:
+        # rotate input with random rotation that varies for each object
+        rotated_data = test_data.clone()
+
+        for i in range(rotated_data.shape[0]):
+            theta = np.random.uniform(0, args.rotation_angle)
+            rotation_matrix = torch.tensor([[np.cos(theta), -np.sin(theta), 0],
+                                            [np.sin(theta),  np.cos(theta), 0],
+                                            [0,              0,             1]], dtype=torch.float32)
+            rotated_data[i] = torch.matmul(test_data[i], rotation_matrix)
+
+        pred_label = model(rotated_data)
+        pred_label = torch.argmax(pred_label, dim = 1)
+        test_accuracy = pred_label.eq(test_label.data).cpu().sum().item() / (test_label.size()[0])
+        print ("test accuracy with rotated input: {}".format(test_accuracy))
+
+    if args.exp_name in ["exp2", "both"]:
+        for exp in range(10):
+            num_points = 100
+            ind = np.random.choice(10000, num_points, replace=False)
+            test_data = torch.from_numpy((np.load(args.test_data))[:,ind,:])
+            pred_label = model(test_data)
+            pred_label = torch.argmax(pred_label, dim = 1)
+            acc = pred_label.eq(test_label.data).cpu().sum().item() / (test_label.size()[0])
+            print ("[Exp {}] test accuracy with {} points: {}".format(exp, num_points, acc))
+        
