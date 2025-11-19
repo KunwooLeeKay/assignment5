@@ -2,7 +2,7 @@ import numpy as np
 import argparse
 
 import torch
-from models import cls_model
+from models import cls_model, cls_model_DGCNN
 from utils import create_dir
 
 from pdb import set_trace as st
@@ -26,6 +26,8 @@ def create_parser():
     parser.add_argument('--exp_name', type=str, default="exp2", help='The name of the experiment')
     parser.add_argument('--rotation_angle', type=float, default=np.pi/4, help='Maximum rotation angle for exp1')
 
+    parser.add_argument('--dgcnn', action='store_true', help='Use DGCNN model if specified')
+
     return parser
 
 
@@ -37,10 +39,13 @@ if __name__ == '__main__':
     create_dir(args.output_dir)
 
     # ------ TO DO: Initialize Model for Classification Task ------
-    model = cls_model()
+    
+    model = cls_model() if not args.dgcnn else cls_model_DGCNN()
+
+    suffix = '_dgcnn' if args.dgcnn else ''
 
     # Load Model Checkpoint
-    model_path = './checkpoints/cls/{}.pt'.format(args.load_checkpoint)
+    model_path = './checkpoints/cls{}/{}.pt'.format(suffix, args.load_checkpoint)
     with open(model_path, 'rb') as f:
         state_dict = torch.load(f, map_location=args.device)
         model.load_state_dict(state_dict)
@@ -75,10 +80,11 @@ if __name__ == '__main__':
 
         pred_label = model(rotated_data)
         pred_label = torch.argmax(pred_label, dim = 1)
-        test_accuracy = pred_label.eq(test_label.data).cpu().sum().item() / (test_label.size()[0])
-        print ("test accuracy with rotated input: {}".format(test_accuracy))
+        rotated_test_accuracy = pred_label.eq(test_label.data).cpu().sum().item() / (test_label.size()[0])
+        print ("test accuracy with rotated input: {}".format(rotated_test_accuracy))
 
     if args.exp_name in ["exp2", "both"]:
+        exp2_accs = []
         for exp in range(10):
             num_points = 100
             ind = np.random.choice(10000, num_points, replace=False)
@@ -86,5 +92,17 @@ if __name__ == '__main__':
             pred_label = model(test_data)
             pred_label = torch.argmax(pred_label, dim = 1)
             acc = pred_label.eq(test_label.data).cpu().sum().item() / (test_label.size()[0])
+            exp2_accs.append(acc)
             print ("[Exp {}] test accuracy with {} points: {}".format(exp, num_points, acc))
+
+
+    # write accuracies to a text file
+    with open("{}/cls{}_accuracy_{}.txt".format(args.output_dir, suffix, args.exp_name), 'w') as f:
+        f.write("Test accuracy: {}\n".format(test_accuracy))
+        if args.exp_name in ["exp1", "both"]:
+            f.write("Test accuracy with rotated input: {}\n".format(rotated_test_accuracy))
+        if args.exp_name in ["exp2", "both"]:
+            for exp, acc in enumerate(exp2_accs):
+                f.write("[Exp {}] test accuracy with 100 points: {}\n".format(exp, acc))
+        
         

@@ -2,7 +2,7 @@ import numpy as np
 import argparse
 
 import torch
-from models import seg_model
+from models import seg_model, seg_model_DGCNN
 from data_loader import get_data_loader
 from utils import create_dir, viz_seg
 
@@ -26,6 +26,8 @@ def create_parser():
     parser.add_argument('--exp_name', type=str, default="exp2", help='The name of the experiment')
     parser.add_argument('--rotation_angle', type=float, default=np.pi/4, help='Maximum rotation angle for exp1')
 
+    parser.add_argument('--dgcnn', action='store_true', help='Use DGCNN model if specified')
+
     return parser
 
 
@@ -37,10 +39,11 @@ if __name__ == '__main__':
     create_dir(args.output_dir)
 
     # ------ TO DO: Initialize Model for Segmentation Task  ------
-    model = seg_model(num_seg_classes = args.num_seg_class).to(args.device)
+    model = seg_model(num_seg_classes = args.num_seg_class).to(args.device) if not args.dgcnn else seg_model_DGCNN(num_seg_classes = args.num_seg_class).to(args.device)
+    suffix = '_dgcnn' if args.dgcnn else ''
     
     # Load Model Checkpoint
-    model_path = './checkpoints/seg/{}.pt'.format(args.load_checkpoint)
+    model_path = './checkpoints/seg{}/{}.pt'.format(suffix, args.load_checkpoint)
     with open(model_path, 'rb') as f:
         state_dict = torch.load(f, map_location=args.device)
         model.load_state_dict(state_dict)
@@ -60,11 +63,9 @@ if __name__ == '__main__':
     test_accuracy = pred_label.eq(test_label.data).cpu().sum().item() / (test_label.reshape((-1,1)).size()[0])
     print ("test accuracy: {}".format(test_accuracy))
 
-
-
     # Visualize Segmentation Result (Pred VS Ground Truth)
-    viz_seg(test_data[args.i], test_label[args.i], "{}/gt_{}.gif".format(args.output_dir, 'default'), args.device)
-    viz_seg(test_data[args.i], pred_label[args.i], "{}/pred_{}.gif".format(args.output_dir, 'default'), args.device)
+    viz_seg(test_data[args.i], test_label[args.i], "{}/seg{}_gt_{}.gif".format(args.output_dir, suffix, 'default'), args.device)
+    viz_seg(test_data[args.i], pred_label[args.i], "{}/seg{}_pred_{}.gif".format(args.output_dir, suffix, 'default'), args.device)
 
 
     if args.exp_name in ["exp1", "both"]:
@@ -80,13 +81,17 @@ if __name__ == '__main__':
 
         pred_label = model(rotated_data.to(args.device))
         pred_label = torch.argmax(pred_label, dim = 2).cpu()
-        test_accuracy = pred_label.eq(test_label.data).cpu().sum().item() / (test_label.size()[0])
-        print ("test accuracy with rotated input: {}".format(test_accuracy))
+        rotated_test_accuracy = pred_label.eq(test_label.data).cpu().sum().item() / (test_label.size()[0])
+        print ("test accuracy with rotated input: {}".format(rotated_test_accuracy))
 
-        viz_seg(test_data[args.i], test_label[args.i], "{}/gt_{}.gif".format(args.output_dir, args.exp_name), args.device)
-        viz_seg(test_data[args.i], pred_label[args.i], "{}/pred_{}.gif".format(args.output_dir, args.exp_name), args.device)
+        create_dir("{}/exp1".format(args.output_dir))
+
+        viz_seg(test_data[args.i], test_label[args.i], "{}/exp1/seg{}_gt_{}.gif".format(suffix, args.output_dir, args.exp_name), args.device)
+        viz_seg(test_data[args.i], pred_label[args.i], "{}/exp1/seg{}_pred_{}.gif".format(suffix, args.output_dir, args.exp_name), args.device)
 
     if args.exp_name in ["exp2", "both"]:
+        exp2_accs = []
+        create_dir("{}/exp2".format(args.output_dir))
         for exp in range(10):
             num_points = 100
             ind = np.random.choice(10000, num_points, replace=False)
@@ -94,7 +99,18 @@ if __name__ == '__main__':
             pred_label = model(test_data)
             pred_label = torch.argmax(pred_label, dim = 2)
             acc = pred_label.eq(test_label.data).cpu().sum().item() / (test_label.size()[0])
+            exp2_accs.append(acc)
             print ("[Exp {}] test accuracy with {} points: {}".format(exp, num_points, acc))
-            viz_seg(test_data[args.i], test_label[args.i], "{}/gt_{}_{}.gif".format(args.output_dir, args.exp_name, exp + 1), args.device)
-            viz_seg(test_data[args.i], pred_label[args.i], "{}/pred_{}_{}.gif".format(args.output_dir, args.exp_name, exp + 1), args.device)
+            viz_seg(test_data[args.i], test_label[args.i], "{}/exp2/seg{}_gt_{}_{}.gif".format(args.output_dir, suffix, args.exp_name, exp + 1), args.device)
+            viz_seg(test_data[args.i], pred_label[args.i], "{}/exp2/seg{}_pred_{}_{}.gif".format(args.output_dir, suffix, args.exp_name, exp + 1), args.device)
+
+
+    # write accuracies to a text file
+    with open("{}/seg{}_accuracy_{}.txt".format(args.output_dir, suffix, args.exp_name), 'w') as f:
+        f.write("Test accuracy: {}\n".format(test_accuracy))
+        if args.exp_name in ["exp1", "both"]:
+            f.write("Test accuracy with rotated input: {}\n".format(rotated_test_accuracy))
+        if args.exp_name in ["exp2", "both"]:
+            for exp, acc in enumerate(exp2_accs):
+                f.write("[Exp {}] test accuracy with 100 points: {}\n".format(exp, acc))
         
