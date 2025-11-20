@@ -23,7 +23,8 @@ def train(train_dataloader, model, opt, epoch, args, writer):
         if N > args.num_points:
             idx = torch.randperm(N)[:args.num_points]
             point_clouds = point_clouds[:, idx, :]  # (B, target_npoints, 3)
-
+            labels = labels[:, idx]
+            
         point_clouds = point_clouds.to(args.device)
         labels = labels.to(args.device).to(torch.long)
 
