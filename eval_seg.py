@@ -6,6 +6,7 @@ from models import seg_model, seg_model_DGCNN
 from data_loader import get_data_loader
 from utils import create_dir, viz_seg
 
+from pdb import set_trace as st
 
 def create_parser():
     """Creates a parser for command-line arguments.
@@ -19,8 +20,8 @@ def create_parser():
     parser.add_argument('--load_checkpoint', type=str, default='best_model')
     parser.add_argument('--i', type=int, default=0, help="index of the object to visualize")
 
-    parser.add_argument('--test_data', type=str, default='./data/cls/data_test.npy')
-    parser.add_argument('--test_label', type=str, default='./data/cls/label_test.npy')
+    parser.add_argument('--test_data', type=str, default='./data/seg/data_test.npy')
+    parser.add_argument('--test_label', type=str, default='./data/seg/label_test.npy')
     parser.add_argument('--output_dir', type=str, default='./output')
 
     parser.add_argument('--exp_name', type=str, default="exp2", help='The name of the experiment')
@@ -52,7 +53,7 @@ if __name__ == '__main__':
 
 
     # Sample Points per Object
-    ind = np.random.choice(10000,args.num_points, replace=False)
+    ind = np.random.choice(10000, args.num_points, replace=False)
     test_data = torch.from_numpy((np.load(args.test_data))[:,ind,:])
     test_label = torch.from_numpy((np.load(args.test_label))[:,ind])
 
