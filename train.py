@@ -23,21 +23,22 @@ def train(train_dataloader, model, opt, epoch, args, writer):
         if N > args.num_points:
             idx = torch.randperm(N)[:args.num_points]
             point_clouds = point_clouds[:, idx, :]  # (B, target_npoints, 3)
-            labels = labels[:, idx]
-            
+
+
         point_clouds = point_clouds.to(args.device)
         labels = labels.to(args.device).to(torch.long)
 
         # ------ TODO: Forward Pass ------
         predictions = model(point_clouds)
 
-        if (args.task == "seg"):
+        if (args.task in ["seg", "seg_dgcnn"]):
             labels = labels.reshape([-1])
             predictions = predictions.reshape([-1, args.num_seg_class])
             
         # Compute Loss
         criterion = torch.nn.CrossEntropyLoss()
         loss = criterion(predictions, labels)
+
         epoch_loss += loss.item()
 
         # Backward and Optimize
@@ -54,7 +55,7 @@ def test(test_dataloader, model, epoch, args, writer):
     model.eval()
 
     # Evaluation in Classification Task
-    if (args.task == "cls"):
+    if (args.task in ["cls", "cls_dgcnn"]):
         correct_obj = 0
         num_obj = 0
         for batch in test_dataloader:
