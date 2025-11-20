@@ -31,7 +31,7 @@ def train(train_dataloader, model, opt, epoch, args, writer):
         # Compute Loss
         criterion = torch.nn.CrossEntropyLoss()
         loss = criterion(predictions, labels)
-        epoch_loss += loss
+        epoch_loss += loss.item()
 
         # Backward and Optimize
         opt.zero_grad()
