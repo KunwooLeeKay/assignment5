@@ -14,7 +14,7 @@ def create_parser():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--num_seg_class', type=int, default=6, help='The number of classes')
-    parser.add_argument('--num_points', type=int, default=1000, help='The number of points per object to be included in the input data')
+    parser.add_argument('--num_points', type=int, default=500, help='The number of points per object to be included in the input data')
 
     # Directories and checkpoint/sample iterations
     parser.add_argument('--load_checkpoint', type=str, default='best_model')
@@ -82,7 +82,7 @@ if __name__ == '__main__':
 
         pred_label = model(rotated_data.to(args.device))
         pred_label = torch.argmax(pred_label, dim = 2).cpu()
-        rotated_test_accuracy = pred_label.eq(test_label.data).cpu().sum().item() / (test_label.size()[0])
+        rotated_test_accuracy = pred_label.eq(test_label.data).cpu().sum().item() / (test_label.reshape((-1, 1)).size()[0])
         print ("test accuracy with rotated input: {}".format(rotated_test_accuracy))
 
         create_dir("{}/exp1".format(args.output_dir))
