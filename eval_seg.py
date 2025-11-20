@@ -22,7 +22,7 @@ def create_parser():
 
     parser.add_argument('--test_data', type=str, default='./data/seg/data_test.npy')
     parser.add_argument('--test_label', type=str, default='./data/seg/label_test.npy')
-    parser.add_argument('--output_dir', type=str, default='./output')
+    parser.add_argument('--output_dir', type=str, default='./output/seg')
 
     parser.add_argument('--exp_name', type=str, default="exp2", help='The name of the experiment')
     parser.add_argument('--rotation_angle', type=float, default=np.pi/4, help='Maximum rotation angle for exp1')
@@ -65,8 +65,8 @@ if __name__ == '__main__':
     print ("test accuracy: {}".format(test_accuracy))
 
     # Visualize Segmentation Result (Pred VS Ground Truth)
-    viz_seg(test_data[args.i], test_label[args.i], "{}/seg{}_gt_{}.gif".format(args.output_dir, suffix, 'default'), args.device)
-    viz_seg(test_data[args.i], pred_label[args.i], "{}/seg{}_pred_{}.gif".format(args.output_dir, suffix, 'default'), args.device)
+    viz_seg(test_data[args.i], test_label[args.i], "{}/seg{}_gt_{}.gif".format(args.output_dir, suffix, 'default'), args.device, args.num_points)
+    viz_seg(test_data[args.i], pred_label[args.i], "{}/seg{}_pred_{}.gif".format(args.output_dir, suffix, 'default'), args.device, args.num_points)
 
 
     if args.exp_name in ["exp1", "both"]:
@@ -87,8 +87,8 @@ if __name__ == '__main__':
 
         create_dir("{}/exp1".format(args.output_dir))
 
-        viz_seg(test_data[args.i], test_label[args.i], "{}/exp1/seg{}_gt_{}.gif".format(suffix, args.output_dir, args.exp_name), args.device)
-        viz_seg(test_data[args.i], pred_label[args.i], "{}/exp1/seg{}_pred_{}.gif".format(suffix, args.output_dir, args.exp_name), args.device)
+        viz_seg(test_data[args.i], test_label[args.i], "{}/exp1/seg{}_gt_{}.gif".format(args.output_dir, suffix, args.exp_name), args.device, args.num_points)
+        viz_seg(test_data[args.i], pred_label[args.i], "{}/exp1/seg{}_pred_{}.gif".format(args.output_dir, suffix, args.exp_name), args.device, args.num_points)
 
     if args.exp_name in ["exp2", "both"]:
         exp2_accs = []
@@ -97,13 +97,15 @@ if __name__ == '__main__':
             num_points = 100
             ind = np.random.choice(10000, num_points, replace=False)
             test_data = torch.from_numpy((np.load(args.test_data))[:,ind,:])
-            pred_label = model(test_data)
-            pred_label = torch.argmax(pred_label, dim = 2)
+            test_label = torch.from_numpy((np.load(args.test_label))[:,ind])
+            pred_label = model(test_data.to(args.device))
+            pred_label = torch.argmax(pred_label, dim = 2).cpu()
+            
             acc = pred_label.eq(test_label.data).cpu().sum().item() / (test_label.size()[0])
             exp2_accs.append(acc)
-            print ("[Exp {}] test accuracy with {} points: {}".format(exp, num_points, acc))
-            viz_seg(test_data[args.i], test_label[args.i], "{}/exp2/seg{}_gt_{}_{}.gif".format(args.output_dir, suffix, args.exp_name, exp + 1), args.device)
-            viz_seg(test_data[args.i], pred_label[args.i], "{}/exp2/seg{}_pred_{}_{}.gif".format(args.output_dir, suffix, args.exp_name, exp + 1), args.device)
+            print ("[Exp2 - iter {}] test accuracy with {} points: {}".format(exp, num_points, acc))
+            viz_seg(test_data[args.i], test_label[args.i], "{}/exp2/seg{}_gt_{}_{}.gif".format(args.output_dir, suffix, args.exp_name, exp + 1), args.device, num_points)
+            viz_seg(test_data[args.i], pred_label[args.i], "{}/exp2/seg{}_pred_{}_{}.gif".format(args.output_dir, suffix, args.exp_name, exp + 1), args.device, num_points)
 
 
     # write accuracies to a text file
@@ -113,5 +115,5 @@ if __name__ == '__main__':
             f.write("Test accuracy with rotated input: {}\n".format(rotated_test_accuracy))
         if args.exp_name in ["exp2", "both"]:
             for exp, acc in enumerate(exp2_accs):
-                f.write("[Exp {}] test accuracy with 100 points: {}\n".format(exp, acc))
+                f.write("[Exp2 - iter {}] test accuracy with 100 points: {}\n".format(exp, acc))
         

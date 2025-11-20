@@ -8,6 +8,8 @@ from models import *
 from data_loader import get_data_loader
 from utils import save_checkpoint, create_dir
 
+from pdb import set_trace as st
+
 def train(train_dataloader, model, opt, epoch, args, writer):
     
     model.train()

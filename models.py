@@ -214,7 +214,7 @@ class EdgeConvBlock(nn.Module):
 # ------ DGCNN CLASSIFICATION MODEL ------
 class cls_model_DGCNN(nn.Module):
     def __init__(self, num_classes=3, k=20):
-        super(cls_model, self).__init__()
+        super(cls_model_DGCNN, self).__init__()
         self.k = k
 
         # EdgeConv layers
@@ -265,7 +265,7 @@ class cls_model_DGCNN(nn.Module):
 # ------ DGCNN SEGMENTATION MODEL ------
 class seg_model_DGCNN(nn.Module):
     def __init__(self, num_seg_classes=6, k=20):
-        super(seg_model, self).__init__()
+        super(seg_model_DGCNN, self).__init__()
         self.k = k
 
         # Same backbone

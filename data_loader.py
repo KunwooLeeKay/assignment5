@@ -2,13 +2,13 @@ from torch.utils.data import DataLoader, Dataset
 import numpy as np
 import torch
 
-
+from pdb import set_trace as st
 
 class CustomDataSet(Dataset):
     """Load data under folders"""
     def __init__(self, args, train=True):
         self.main_dir = args.main_dir 
-        self.task = args.task 
+        self.task = args.task if args.task in ["cls", "seg"] else args.task.replace('_dgcnn', '')
 
         if train:
             data_path = self.main_dir + self.task + "/data_train.npy"

@@ -21,7 +21,7 @@ def create_parser():
 
     parser.add_argument('--test_data', type=str, default='./data/cls/data_test.npy')
     parser.add_argument('--test_label', type=str, default='./data/cls/label_test.npy')
-    parser.add_argument('--output_dir', type=str, default='./output')
+    parser.add_argument('--output_dir', type=str, default='./output/cls')
 
     parser.add_argument('--exp_name', type=str, default="exp2", help='The name of the experiment')
     parser.add_argument('--rotation_angle', type=float, default=np.pi/4, help='Maximum rotation angle for exp1')

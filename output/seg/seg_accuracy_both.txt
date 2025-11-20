@@ -1,0 +1,12 @@
+Test accuracy: 0.5948136142625607
+Test accuracy with rotated input: 0.5623987034035657
+[Exp 0] test accuracy with 100 points: 83.28687196110211
+[Exp 1] test accuracy with 100 points: 83.56888168557536
+[Exp 2] test accuracy with 100 points: 83.15397082658022
+[Exp 3] test accuracy with 100 points: 83.27876823338735
+[Exp 4] test accuracy with 100 points: 83.65964343598056
+[Exp 5] test accuracy with 100 points: 83.3419773095624
+[Exp 6] test accuracy with 100 points: 83.3905996758509
+[Exp 7] test accuracy with 100 points: 83.44084278768233
+[Exp 8] test accuracy with 100 points: 83.2998379254457
+[Exp 9] test accuracy with 100 points: 83.3679092382496
