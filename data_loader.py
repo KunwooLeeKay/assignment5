@@ -8,7 +8,7 @@ class CustomDataSet(Dataset):
     """Load data under folders"""
     def __init__(self, args, train=True):
         self.main_dir = args.main_dir 
-        self.task = args.task if args.task in ["cls", "seg"] else args.task.replace('_dgcnn', '')
+        self.task = args.task if args.task in ["cls", "seg"] else args.task.split('_')[0]
 
         if train:
             data_path = self.main_dir + self.task + "/data_train.npy"

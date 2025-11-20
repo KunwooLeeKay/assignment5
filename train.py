@@ -18,6 +18,12 @@ def train(train_dataloader, model, opt, epoch, args, writer):
 
     for i, batch in enumerate(train_dataloader):
         point_clouds, labels = batch
+        B, N, _ = point_clouds.shape
+
+        if N > args.num_points:
+            idx = torch.randperm(N)[:args.num_points]
+            point_clouds = point_clouds[:, idx, :]  # (B, target_npoints, 3)
+
         point_clouds = point_clouds.to(args.device)
         labels = labels.to(args.device).to(torch.long)
 
@@ -171,6 +177,7 @@ def create_parser():
     parser.add_argument('--batch_size', type=int, default=32, help='The number of images in a batch.')
     parser.add_argument('--num_workers', type=int, default=0, help='The number of threads to use for the DataLoader.')
     parser.add_argument('--lr', type=float, default=0.001, help='The learning rate (default 0.001)')
+    parser.add_argument('--num_points', type=int, default=10000, help='The number of points per object to be included in the input data')
 
     parser.add_argument('--exp_name', type=str, default="exp", help='The name of the experiment')
 
