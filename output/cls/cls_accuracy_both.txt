@@ -1,12 +1,12 @@
-Test accuracy: 0.9716684155299056
-Test accuracy with rotated input: 0.7932843651626443
-[Exp 0] test accuracy with 100 points: 0.925498426023085
-[Exp 1] test accuracy with 100 points: 0.9171038824763903
-[Exp 2] test accuracy with 100 points: 0.9275970619097587
-[Exp 3] test accuracy with 100 points: 0.9213011542497377
-[Exp 4] test accuracy with 100 points: 0.938090241343127
-[Exp 5] test accuracy with 100 points: 0.9265477439664218
-[Exp 6] test accuracy with 100 points: 0.9275970619097587
+Test accuracy: 0.9758656873032528
+Test accuracy with rotated input: 0.8016789087093389
+[Exp 0] test accuracy with 100 points: 0.9233997901364114
+[Exp 1] test accuracy with 100 points: 0.925498426023085
+[Exp 2] test accuracy with 100 points: 0.9296956977964324
+[Exp 3] test accuracy with 100 points: 0.925498426023085
+[Exp 4] test accuracy with 100 points: 0.9181532004197271
+[Exp 5] test accuracy with 100 points: 0.9233997901364114
+[Exp 6] test accuracy with 100 points: 0.925498426023085
 [Exp 7] test accuracy with 100 points: 0.9286463798530955
-[Exp 8] test accuracy with 100 points: 0.9307450157397692
-[Exp 9] test accuracy with 100 points: 0.9181532004197271
+[Exp 8] test accuracy with 100 points: 0.9233997901364114
+[Exp 9] test accuracy with 100 points: 0.9286463798530955

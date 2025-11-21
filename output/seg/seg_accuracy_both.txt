@@ -1,12 +1,12 @@
-Test accuracy: 0.5948136142625607
-Test accuracy with rotated input: 0.5623987034035657
-[Exp 0] test accuracy with 100 points: 83.28687196110211
-[Exp 1] test accuracy with 100 points: 83.56888168557536
-[Exp 2] test accuracy with 100 points: 83.15397082658022
-[Exp 3] test accuracy with 100 points: 83.27876823338735
-[Exp 4] test accuracy with 100 points: 83.65964343598056
-[Exp 5] test accuracy with 100 points: 83.3419773095624
-[Exp 6] test accuracy with 100 points: 83.3905996758509
-[Exp 7] test accuracy with 100 points: 83.44084278768233
-[Exp 8] test accuracy with 100 points: 83.2998379254457
-[Exp 9] test accuracy with 100 points: 83.3679092382496
+Test accuracy: 0.8920162074554295
+Test accuracy with rotated input: 0.7894327390599676
+[Exp2 - iter 0] test accuracy with 100 points: 82.86385737439223
+[Exp2 - iter 1] test accuracy with 100 points: 83.0259319286872
+[Exp2 - iter 2] test accuracy with 100 points: 82.90599675850892
+[Exp2 - iter 3] test accuracy with 100 points: 83.22204213938411
+[Exp2 - iter 4] test accuracy with 100 points: 82.99513776337115
+[Exp2 - iter 5] test accuracy with 100 points: 83.44084278768233
+[Exp2 - iter 6] test accuracy with 100 points: 83.2998379254457
+[Exp2 - iter 7] test accuracy with 100 points: 83.01782820097245
+[Exp2 - iter 8] test accuracy with 100 points: 83.22042139384116
+[Exp2 - iter 9] test accuracy with 100 points: 82.88168557536467
