@@ -3,10 +3,8 @@ import argparse
 
 import torch
 from models import seg_model, seg_model_DGCNN
-from data_loader import get_data_loader
 from utils import create_dir, viz_seg
 
-from pdb import set_trace as st
 
 def create_parser():
     """Creates a parser for command-line arguments.
@@ -18,7 +16,9 @@ def create_parser():
 
     # Directories and checkpoint/sample iterations
     parser.add_argument('--load_checkpoint', type=str, default='best_model')
-    parser.add_argument('--i', type=list, default=[0, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600], help="index of the object to visualize")
+    parser.add_argument('--i', type=list,
+                        default=[0, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600],
+                        help="index of the object to visualize")
 
     parser.add_argument('--test_data', type=str, default='./data/seg/data_test.npy')
     parser.add_argument('--test_label', type=str, default='./data/seg/label_test.npy')
@@ -29,7 +29,27 @@ def create_parser():
 
     parser.add_argument('--dgcnn', action='store_true', help='Use DGCNN model if specified')
 
+    # to avoid OOM with DGCNN
+    parser.add_argument('--eval_batch_size', type=int, default=16, help='Batch size for evaluation')
+
     return parser
+
+
+def forward_in_batches_seg(model, data, device, batch_size):
+    """
+    data: (M, N, 3) on CPU
+    returns logits: (M, N, C) on CPU
+    """
+    model.eval()
+    preds = []
+    M = data.shape[0]
+    with torch.no_grad():
+        for start in range(0, M, batch_size):
+            end = min(start + batch_size, M)
+            batch = data[start:end].to(device=device, dtype=torch.float32)  # (b, N, 3)
+            logits = model(batch)                                           # (b, N, C)
+            preds.append(logits.cpu())
+    return torch.cat(preds, dim=0)  # (M, N, C)
 
 
 if __name__ == '__main__':
@@ -39,83 +59,143 @@ if __name__ == '__main__':
 
     create_dir(args.output_dir)
 
-    # ------ TO DO: Initialize Model for Segmentation Task  ------
-    model = seg_model(num_seg_classes = args.num_seg_class).to(args.device) if not args.dgcnn else seg_model_DGCNN(num_seg_classes = args.num_seg_class).to(args.device)
+    # ------ Initialize Model for Segmentation Task  ------
+    model = seg_model(num_seg_classes=args.num_seg_class) \
+        if not args.dgcnn else seg_model_DGCNN(num_seg_classes=args.num_seg_class)
+    model = model.to(args.device)
+
     suffix = '_dgcnn' if args.dgcnn else ''
-    
+
     # Load Model Checkpoint
     model_path = './checkpoints/seg{}/{}.pt'.format(suffix, args.load_checkpoint)
     with open(model_path, 'rb') as f:
         state_dict = torch.load(f, map_location=args.device)
         model.load_state_dict(state_dict)
     model.eval()
-    print ("successfully loaded checkpoint from {}".format(model_path))
+    print("successfully loaded checkpoint from {}".format(model_path))
 
+    # ----- Load full test data once -----
+    full_test_data_np = np.load(args.test_data)          # (M, 10000, 3)
+    full_test_label_np = np.load(args.test_label)        # (M, 10000)
+    M, N_all, _ = full_test_data_np.shape
 
-    # Sample Points per Object
-    ind = np.random.choice(10000, args.num_points, replace=False)
-    test_data = torch.from_numpy((np.load(args.test_data))[:,ind,:])
-    test_label = torch.from_numpy((np.load(args.test_label))[:,ind])
+    # Sample points per object
+    ind = np.random.choice(N_all, args.num_points, replace=False)
+    test_data = torch.from_numpy(full_test_data_np[:, ind, :])      # (M, num_points, 3)  CPU
+    test_label = torch.from_numpy(full_test_label_np[:, ind])       # (M, num_points)     CPU
 
-    # ------ TO DO: Make Prediction ------
-    pred_label = model(test_data.to(args.device))
-    pred_label = torch.argmax(pred_label, dim = 2).cpu()
+    # ------ Make Prediction (batched) ------
+    logits = forward_in_batches_seg(model, test_data, args.device, args.eval_batch_size)  # (M, N, C)
+    pred_label = torch.argmax(logits, dim=2)                                              # (M, N) CPU
 
-    test_accuracy = pred_label.eq(test_label.data).cpu().sum().item() / (test_label.reshape((-1,1)).size()[0])
-    print ("test accuracy: {}".format(test_accuracy))
+    # accuracy per point
+    total_points = test_label.numel()
+    correct_points = pred_label.eq(test_label).sum().item()
+    test_accuracy = correct_points / total_points
+    print("test accuracy: {}".format(test_accuracy))
 
+    # ------ Visualize default (no rotation) ------
     for index in args.i:
-        viz_seg(test_data[index], test_label[index], "{}/seg{}_{}_gt_{}.gif".format(args.output_dir, suffix, index, 'default'), args.device, args.num_points)
-        viz_seg(test_data[index], pred_label[index], "{}/seg{}_{}_pred_{}.gif".format(args.output_dir, suffix, index, 'default'), args.device, args.num_points)
+        viz_seg(
+            test_data[index].cpu(),            # (N, 3)
+            test_label[index].cpu(),           # (N,)
+            "{}/seg{}_{}_gt_default.gif".format(args.output_dir, suffix, index),
+            args.device,
+            args.num_points,
+        )
+        viz_seg(
+            test_data[index].cpu(),
+            pred_label[index].cpu(),
+            "{}/seg{}_{}_pred_default.gif".format(args.output_dir, suffix, index),
+            args.device,
+            args.num_points,
+        )
 
-
+    # ------ exp1: rotation robustness ------
     if args.exp_name in ["exp1", "both"]:
-        # rotate input with random rotation that varies for each object
-        rotated_data = test_data.clone()
+        rotated_data = test_data.clone()  # CPU
 
         for i in range(rotated_data.shape[0]):
             theta = np.random.uniform(0, args.rotation_angle)
-            rotation_matrix = torch.tensor([[np.cos(theta), -np.sin(theta), 0],
-                                            [np.sin(theta),  np.cos(theta), 0],
-                                            [0,              0,             1]], dtype=torch.float32)
-            rotated_data[i] = torch.matmul(test_data[i], rotation_matrix)
+            R = torch.tensor(
+                [[np.cos(theta), -np.sin(theta), 0],
+                 [np.sin(theta),  np.cos(theta), 0],
+                 [0,              0,             1]],
+                dtype=torch.float32,
+            )
+            rotated_data[i] = torch.matmul(test_data[i], R)
 
-        pred_label = model(rotated_data.to(args.device))
-        pred_label = torch.argmax(pred_label, dim = 2).cpu()
-        rotated_test_accuracy = pred_label.eq(test_label.data).cpu().sum().item() / (test_label.reshape((-1, 1)).size()[0])
-        print ("test accuracy with rotated input: {}".format(rotated_test_accuracy))
+        logits_rot = forward_in_batches_seg(model, rotated_data, args.device, args.eval_batch_size)
+        pred_rot = torch.argmax(logits_rot, dim=2)  # (M, N) CPU
 
-        create_dir("{}/exp1".format(args.output_dir))
+        correct_rot = pred_rot.eq(test_label).sum().item()
+        rotated_test_accuracy = correct_rot / total_points
+        print("test accuracy with rotated input: {}".format(rotated_test_accuracy))
+
+        exp1_dir = "{}/exp1".format(args.output_dir)
+        create_dir(exp1_dir)
 
         for index in args.i:
-            viz_seg(rotated_data[index], test_label[index], "{}/exp1/seg{}_{}_gt_{}.gif".format(args.output_dir, suffix, index, args.exp_name), args.device, args.num_points)
-            viz_seg(rotated_data[index], pred_label[index], "{}/exp1/seg{}_{}_pred_{}.gif".format(args.output_dir, suffix, index, args.exp_name), args.device, args.num_points)
+            viz_seg(
+                rotated_data[index].cpu(),
+                test_label[index].cpu(),
+                "{}/seg{}_{}_gt_{}.gif".format(exp1_dir, suffix, index, args.exp_name),
+                args.device,
+                args.num_points,
+            )
+            viz_seg(
+                rotated_data[index].cpu(),
+                pred_rot[index].cpu(),
+                "{}/seg{}_{}_pred_{}.gif".format(exp1_dir, suffix, index, args.exp_name),
+                args.device,
+                args.num_points,
+            )
 
+    # ------ exp2: accuracy vs #points ------
     if args.exp_name in ["exp2", "both"]:
         exp2_accs = []
-        create_dir("{}/exp2".format(args.output_dir))
+        exp2_dir = "{}/exp2".format(args.output_dir)
+        create_dir(exp2_dir)
+
         for exp in range(10):
             num_points = 100
-            ind = np.random.choice(10000, num_points, replace=False)
-            test_data = torch.from_numpy((np.load(args.test_data))[:,ind,:])
-            test_label = torch.from_numpy((np.load(args.test_label))[:,ind])
-            pred_label = model(test_data.to(args.device))
-            pred_label = torch.argmax(pred_label, dim = 2).cpu()
-            
-            acc = pred_label.eq(test_label.data).cpu().sum().item() / (test_label.size()[0])
+            ind_small = np.random.choice(N_all, num_points, replace=False)
+            test_data_small = torch.from_numpy(full_test_data_np[:, ind_small, :])    # (M, 100, 3)
+            test_label_small = torch.from_numpy(full_test_label_np[:, ind_small])     # (M, 100)
+
+            logits_small = forward_in_batches_seg(model, test_data_small, args.device, args.eval_batch_size)
+            pred_small = torch.argmax(logits_small, dim=2)                             # (M, 100)
+
+            total_points_small = test_label_small.numel()
+            correct_small = pred_small.eq(test_label_small).sum().item()
+            acc = correct_small / total_points_small
             exp2_accs.append(acc)
-            print ("[Exp2 - iter {}] test accuracy with {} points: {}".format(exp, num_points, acc))
+            print("[Exp2 - iter {}] test accuracy with {} points: {}".format(exp, num_points, acc))
 
             for index in [args.i[0], args.i[-1]]:
-                viz_seg(test_data[index], test_label[index], "{}/exp2/seg{}_{}_gt_{}_{}.gif".format(args.output_dir, suffix, index, args.exp_name, exp + 1), args.device, num_points)
-                viz_seg(test_data[index], pred_label[index], "{}/exp2/seg{}_{}_pred_{}_{}.gif".format(args.output_dir, suffix, index, args.exp_name, exp + 1), args.device, num_points) 
+                viz_seg(
+                    test_data_small[index].cpu(),
+                    test_label_small[index].cpu(),
+                    "{}/seg{}_{}_gt_{}_{}.gif".format(exp2_dir, suffix, index, args.exp_name, exp + 1),
+                    args.device,
+                    num_points,
+                )
+                viz_seg(
+                    test_data_small[index].cpu(),
+                    pred_small[index].cpu(),
+                    "{}/seg{}_{}_pred_{}_{}.gif".format(exp2_dir, suffix, index, args.exp_name, exp + 1),
+                    args.device,
+                    num_points,
+                )
 
-    # write accuracies to a text file
-    with open("{}/seg{}_accuracy_{}.txt".format(args.output_dir, suffix, args.exp_name), 'w') as f:
+    # ------ write accuracies to a text file ------
+    out_txt = "{}/seg{}_accuracy_{}.txt".format(args.output_dir, suffix, args.exp_name)
+    with open(out_txt, 'w') as f:
         f.write("Test accuracy: {}\n".format(test_accuracy))
         if args.exp_name in ["exp1", "both"]:
             f.write("Test accuracy with rotated input: {}\n".format(rotated_test_accuracy))
         if args.exp_name in ["exp2", "both"]:
             for exp, acc in enumerate(exp2_accs):
                 f.write("[Exp2 - iter {}] test accuracy with 100 points: {}\n".format(exp, acc))
-        
+
+    print("wrote accuracy log to", out_txt)
