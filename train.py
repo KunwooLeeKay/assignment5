@@ -23,6 +23,8 @@ def train(train_dataloader, model, opt, epoch, args, writer):
         if N > args.num_points:
             idx = torch.randperm(N)[:args.num_points]
             point_clouds = point_clouds[:, idx, :]  # (B, target_npoints, 3)
+            if args.task in ["seg", "seg_dgcnn"]:
+                labels = labels[:, idx]  
 
 
         point_clouds = point_clouds.to(args.device)
@@ -66,6 +68,7 @@ def test(test_dataloader, model, epoch, args, writer):
                 if N > args.num_points:
                     idx = torch.randperm(N)[:args.num_points]
                     point_clouds = point_clouds[:, idx, :]  # (B, num_points, 3)
+
 
                 point_clouds = point_clouds.to(args.device)
                 labels = labels.to(args.device).long()
