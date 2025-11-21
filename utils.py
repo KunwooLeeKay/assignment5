@@ -10,6 +10,8 @@ from pytorch3d.renderer import (
 import imageio
 import numpy as np
 
+from pdb import set_trace as st
+
 def save_checkpoint(epoch, model, args, best=False):
     if best:
         path = os.path.join(args.checkpoint_dir, 'best_model.pt')
@@ -51,7 +53,72 @@ def get_points_renderer(
         compositor=AlphaCompositor(background_color=background_color),
     )
     return renderer
+        
+def viz_cls(verts, pred_label, path, device, num_points=10000):
+    """
+    visualize classification result
+    output: a 360-degree gif
+    """
+    import imageio
+    import cv2
+    import pytorch3d
+    from pytorch3d.renderer import FoVPerspectiveCameras
 
+    image_size = 256
+    background_color = (1, 1, 1)
+    N_frames = 60
+
+    # Construct various camera viewpoints
+    dist = 3
+    elev = 0
+    azim = [180 - 12 * i for i in range(N_frames)]
+    R, T = pytorch3d.renderer.cameras.look_at_view_transform(
+        dist=dist, elev=elev, azim=azim, device=device
+    )
+    cameras = FoVPerspectiveCameras(R=R, T=T, fov=60, device=device)
+
+    # verts: (N, 3) on CPU → move to device, add batch dim
+    sample_verts = verts.to(device=device, dtype=torch.float32).unsqueeze(0)  # (1, N, 3)
+
+    # Create dummy features (e.g., all ones = white points)
+    # Shape should be (1, N, C); C=3 for RGB
+    features = torch.ones_like(sample_verts)  # (1, N, 3)
+
+    point_cloud = pytorch3d.structures.Pointclouds(
+        points=sample_verts,
+        features=features
+    ).to(device).extend(N_frames)  # (N_frames, N, 3)
+
+    renderer = get_points_renderer(
+        image_size=image_size,
+        background_color=background_color,
+        device=device,
+    )
+
+    # Render: (N_frames, H, W, 3)
+    rend = renderer(point_cloud, cameras=cameras).cpu().numpy()
+    rend = (rend * 255).astype(np.uint8)
+
+    # Add predicted label text to each frame
+    pred_class = pred_label.item() if torch.is_tensor(pred_label) else pred_label
+    map = {
+        0: "chair",
+        1: "vase",
+        2: "lamp",
+    }
+    text = f"Predicted Class: {map[pred_class]}"
+    for i in range(rend.shape[0]):
+        cv2.putText(
+            rend[i],
+            text,
+            (10, 25),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (0, 0, 0),
+            2,
+        )
+
+    imageio.mimsave(path, rend, fps=15)
 
 def viz_seg (verts, labels, path, device, num_points=10000):
     """

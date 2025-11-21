@@ -18,7 +18,7 @@ def create_parser():
 
     # Directories and checkpoint/sample iterations
     parser.add_argument('--load_checkpoint', type=str, default='best_model')
-    parser.add_argument('--i', type=int, default=0, help="index of the object to visualize")
+    parser.add_argument('--i', type=list, default=[0, 617, 719, 406, 651, 726], help="index of the object to visualize")
 
     parser.add_argument('--test_data', type=str, default='./data/seg/data_test.npy')
     parser.add_argument('--test_label', type=str, default='./data/seg/label_test.npy')
@@ -64,9 +64,9 @@ if __name__ == '__main__':
     test_accuracy = pred_label.eq(test_label.data).cpu().sum().item() / (test_label.reshape((-1,1)).size()[0])
     print ("test accuracy: {}".format(test_accuracy))
 
-    # Visualize Segmentation Result (Pred VS Ground Truth)
-    viz_seg(test_data[args.i], test_label[args.i], "{}/seg{}_gt_{}.gif".format(args.output_dir, suffix, 'default'), args.device, args.num_points)
-    viz_seg(test_data[args.i], pred_label[args.i], "{}/seg{}_pred_{}.gif".format(args.output_dir, suffix, 'default'), args.device, args.num_points)
+    for index in args.i:
+        viz_seg(test_data[index], test_label[index], "{}/seg{}_{}_gt_{}.gif".format(args.output_dir, suffix, index, 'default'), args.device, args.num_points)
+        viz_seg(test_data[index], pred_label[index], "{}/seg{}_{}_pred_{}.gif".format(args.output_dir, suffix, index, 'default'), args.device, args.num_points)
 
 
     if args.exp_name in ["exp1", "both"]:
@@ -87,8 +87,9 @@ if __name__ == '__main__':
 
         create_dir("{}/exp1".format(args.output_dir))
 
-        viz_seg(test_data[args.i], test_label[args.i], "{}/exp1/seg{}_gt_{}.gif".format(args.output_dir, suffix, args.exp_name), args.device, args.num_points)
-        viz_seg(test_data[args.i], pred_label[args.i], "{}/exp1/seg{}_pred_{}.gif".format(args.output_dir, suffix, args.exp_name), args.device, args.num_points)
+        for index in args.i:
+            viz_seg(rotated_data[index], test_label[index], "{}/exp1/seg{}_{}_gt_{}.gif".format(args.output_dir, suffix, index, args.exp_name), args.device, args.num_points)
+            viz_seg(rotated_data[index], pred_label[index], "{}/exp1/seg{}_{}_pred_{}.gif".format(args.output_dir, suffix, index, args.exp_name), args.device, args.num_points)
 
     if args.exp_name in ["exp2", "both"]:
         exp2_accs = []
@@ -104,9 +105,10 @@ if __name__ == '__main__':
             acc = pred_label.eq(test_label.data).cpu().sum().item() / (test_label.size()[0])
             exp2_accs.append(acc)
             print ("[Exp2 - iter {}] test accuracy with {} points: {}".format(exp, num_points, acc))
-            viz_seg(test_data[args.i], test_label[args.i], "{}/exp2/seg{}_gt_{}_{}.gif".format(args.output_dir, suffix, args.exp_name, exp + 1), args.device, num_points)
-            viz_seg(test_data[args.i], pred_label[args.i], "{}/exp2/seg{}_pred_{}_{}.gif".format(args.output_dir, suffix, args.exp_name, exp + 1), args.device, num_points)
 
+            for index in args.i:
+                viz_seg(test_data[index], test_label[index], "{}/exp2/seg{}_{}_gt_{}_{}.gif".format(args.output_dir, suffix, index, args.exp_name, exp + 1), args.device, num_points)
+                viz_seg(test_data[index], pred_label[index], "{}/exp2/seg{}_{}_pred_{}_{}.gif".format(args.output_dir, suffix, index, args.exp_name, exp + 1), args.device, num_points) 
 
     # write accuracies to a text file
     with open("{}/seg{}_accuracy_{}.txt".format(args.output_dir, suffix, args.exp_name), 'w') as f:

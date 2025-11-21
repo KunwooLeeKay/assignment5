@@ -3,7 +3,7 @@ import argparse
 
 import torch
 from models import cls_model, cls_model_DGCNN
-from utils import create_dir
+from utils import create_dir, viz_cls
 
 from pdb import set_trace as st
 
@@ -17,7 +17,6 @@ def create_parser():
 
     # Directories and checkpoint/sample iterations
     parser.add_argument('--load_checkpoint', type=str, default='best_model')
-    parser.add_argument('--i', type=int, default=0, help="index of the object to visualize")
 
     parser.add_argument('--test_data', type=str, default='./data/cls/data_test.npy')
     parser.add_argument('--test_label', type=str, default='./data/cls/label_test.npy')
@@ -67,6 +66,43 @@ if __name__ == '__main__':
     test_accuracy = pred_label.eq(test_label.data).cpu().sum().item() / (test_label.size()[0])
     print ("test accuracy: {}".format(test_accuracy))
 
+    '''
+    Visualize a few random test point clouds and mention the predicted classes for each. 
+    Also visualize at least 1 failure prediction for each class (chair, vase and lamp), and provide interpretation in a few sentences.
+    '''
+    # find wrong prediction for each class
+    class_0_idx = np.where(test_label.data==0)[0]
+    class_1_idx = np.where(test_label.data==1)[0]
+    class_2_idx = np.where(test_label.data==2)[0]
+    # among each class, find wrong predictions
+    class_0_wrong = [idx for idx in class_0_idx if pred_label[idx] != 0]
+    class_1_wrong = [idx for idx in class_1_idx if pred_label[idx] != 1]
+    class_2_wrong = [idx for idx in class_2_idx if pred_label[idx] != 2]
+    
+    for cls, wrong_list in zip([0,1,2], [class_0_wrong, class_1_wrong, class_2_wrong]):
+        if len(wrong_list) == 0:
+            print ("No wrong prediction for class {}".format(cls))
+            continue
+        idx = wrong_list[0]
+        viz_cls(test_data[idx], pred_label[idx], 
+                path="{}/cls{}_wrong_pred_obj{}_class{}.gif".format(args.output_dir, suffix, idx, cls),
+                device=args.device,
+                num_points=args.num_points)
+    
+    class_0_correct = [idx for idx in class_0_idx if pred_label[idx] == 0]
+    class_1_correct = [idx for idx in class_1_idx if pred_label[idx] == 1]
+    class_2_correct = [idx for idx in class_2_idx if pred_label[idx] == 2]
+
+    for cls, correct_list in zip([0,1,2], [class_0_correct, class_1_correct, class_2_correct]):
+        if len(correct_list) == 0:
+            print ("No correct prediction for class {}".format(cls))
+            continue
+        idx = correct_list[0]
+        viz_cls(test_data[idx], pred_label[idx], 
+                path="{}/cls{}_correct_pred_obj{}_class{}.gif".format(args.output_dir, suffix, idx, cls),
+                device=args.device,
+                num_points=args.num_points)
+
     if args.exp_name in ["exp1", "both"]:
         # rotate input with random rotation that varies for each object
         rotated_data = test_data.clone()
@@ -80,6 +116,17 @@ if __name__ == '__main__':
 
         pred_label = model(rotated_data)
         pred_label = torch.argmax(pred_label, dim = 1)
+
+        for cls, correct_list in zip([0,1,2], [class_0_correct, class_1_correct, class_2_correct]):
+            if len(correct_list) == 0:
+                print ("No correct prediction for class {}".format(cls))
+                continue
+            idx = correct_list[0]
+            viz_cls(rotated_data[idx], pred_label[idx], 
+                    path="{}/cls_exp1_{}_pred_obj{}_class{}.gif".format(args.output_dir, suffix, idx, cls),
+                    device=args.device,
+                    num_points=args.num_points)
+
         rotated_test_accuracy = pred_label.eq(test_label.data).cpu().sum().item() / (test_label.size()[0])
         print ("test accuracy with rotated input: {}".format(rotated_test_accuracy))
 
@@ -96,6 +143,17 @@ if __name__ == '__main__':
             print ("[Exp {}] test accuracy with {} points: {}".format(exp, num_points, acc))
 
 
+            for cls, correct_list in zip([0,1,2], [class_0_correct, class_1_correct, class_2_correct]):
+                if len(correct_list) == 0:
+                    print ("No correct prediction for class {}".format(cls))
+                    continue
+                idx = correct_list[0]
+                viz_cls(test_data[idx], pred_label[idx], 
+                        path="{}/cls_exp2_{}_{}_pred_obj{}_class{}.gif".format(args.output_dir, exp+1, suffix, idx, cls),
+                        device=args.device,
+                        num_points=num_points)
+
+
     # write accuracies to a text file
     with open("{}/cls{}_accuracy_{}.txt".format(args.output_dir, suffix, args.exp_name), 'w') as f:
         f.write("Test accuracy: {}\n".format(test_accuracy))
@@ -104,5 +162,7 @@ if __name__ == '__main__':
         if args.exp_name in ["exp2", "both"]:
             for exp, acc in enumerate(exp2_accs):
                 f.write("[Exp {}] test accuracy with 100 points: {}\n".format(exp, acc))
-        
+
+
+
         
