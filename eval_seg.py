@@ -106,7 +106,7 @@ if __name__ == '__main__':
             exp2_accs.append(acc)
             print ("[Exp2 - iter {}] test accuracy with {} points: {}".format(exp, num_points, acc))
 
-            for index in args.i:
+            for index in [args.i[0], args.i[-1]]:
                 viz_seg(test_data[index], test_label[index], "{}/exp2/seg{}_{}_gt_{}_{}.gif".format(args.output_dir, suffix, index, args.exp_name, exp + 1), args.device, num_points)
                 viz_seg(test_data[index], pred_label[index], "{}/exp2/seg{}_{}_pred_{}_{}.gif".format(args.output_dir, suffix, index, args.exp_name, exp + 1), args.device, num_points) 
 
