@@ -18,7 +18,7 @@ def create_parser():
 
     # Directories and checkpoint/sample iterations
     parser.add_argument('--load_checkpoint', type=str, default='best_model')
-    parser.add_argument('--i', type=list, default=[0, 617, 719, 406, 651, 726], help="index of the object to visualize")
+    parser.add_argument('--i', type=list, default=[0, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600], help="index of the object to visualize")
 
     parser.add_argument('--test_data', type=str, default='./data/seg/data_test.npy')
     parser.add_argument('--test_label', type=str, default='./data/seg/label_test.npy')
