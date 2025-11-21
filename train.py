@@ -51,52 +51,61 @@ def train(train_dataloader, model, opt, epoch, args, writer):
     return epoch_loss
 
 def test(test_dataloader, model, epoch, args, writer):
-    
     model.eval()
 
-    # Evaluation in Classification Task
-    if (args.task in ["cls", "cls_dgcnn"]):
+    # Classification
+    if args.task in ["cls", "cls_dgcnn"]:
         correct_obj = 0
         num_obj = 0
-        for batch in test_dataloader:
-            point_clouds, labels = batch
-            point_clouds = point_clouds.to(args.device)
-            labels = labels.to(args.device).to(torch.long)
 
-            # ------ TODO: Make Predictions ------
-            with torch.no_grad():
-                pred_labels = model(point_clouds)
-                pred_labels = torch.argmax(pred_labels, dim = 1)
-            correct_obj += pred_labels.eq(labels.data).cpu().sum().item()
-            num_obj += labels.size()[0]
+        with torch.no_grad():
+            for batch in test_dataloader:
+                point_clouds, labels = batch  # (B, N, 3), (B,)
+                B, N, _ = point_clouds.shape
 
-        # Compute Accuracy of Test Dataset
+                if N > args.num_points:
+                    idx = torch.randperm(N)[:args.num_points]
+                    point_clouds = point_clouds[:, idx, :]  # (B, num_points, 3)
+
+                point_clouds = point_clouds.to(args.device)
+                labels = labels.to(args.device).long()
+
+                pred_logits = model(point_clouds)          # (B, num_classes)
+                pred_labels = torch.argmax(pred_logits, dim=1)  # (B,)
+
+                correct_obj += pred_labels.eq(labels).sum().item()
+                num_obj += labels.size(0)
+
         accuracy = correct_obj / num_obj
-                
-        
-    # Evaluation in Segmentation Task
+
+    # Segmentation
     else:
         correct_point = 0
         num_point = 0
-        for batch in test_dataloader:
-            point_clouds, labels = batch
-            point_clouds = point_clouds.to(args.device)
-            labels = labels.to(args.device).to(torch.long)
 
-            # ------ TODO: Make Predictions ------
-            with torch.no_grad():     
-                pred_labels = model(point_clouds)
-                pred_labels = torch.argmax(pred_labels, dim = 2)
+        with torch.no_grad():
+            for batch in test_dataloader:
+                point_clouds, labels = batch  # (B, N, 3), (B, N)
+                B, N, _ = point_clouds.shape
 
-            correct_point += pred_labels.eq(labels.data).cpu().sum().item()
-            num_point += labels.view([-1,1]).size()[0]
+                if N > args.num_points:
+                    idx = torch.randperm(N)[:args.num_points]
+                    point_clouds = point_clouds[:, idx, :]   # (B, num_points, 3)
+                    labels = labels[:, idx]                  # (B, num_points)
 
-        # Compute Accuracy of Test Dataset
+                point_clouds = point_clouds.to(args.device)
+                labels = labels.to(args.device).long()
+
+                pred_logits = model(point_clouds)            # (B, num_points, num_seg_class)
+                pred_labels = torch.argmax(pred_logits, dim=2)  # (B, num_points)
+
+                correct_point += pred_labels.eq(labels).sum().item()
+                num_point += labels.numel()                  # B * num_points
+
         accuracy = correct_point / num_point
 
     writer.add_scalar("test_acc", accuracy, epoch)
     return accuracy
-
 
 def main(args):
     """Loads the data, creates checkpoint and sample directories, and starts the training loop.
